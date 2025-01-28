@@ -8,5 +8,7 @@ module load anaconda/Python-ML-2024b
 
 eval "$(conda shell.bash hook)"
 source activate autoimmuneML_env
+export PATH=/home/gridsan/dkannan/.conda/envs/autoimmuneML_env/bin:$PATH 
+echo $PATH 
 
-crunch setup --size default broad-1 aecv1 --token FAXL5rNprhxMkvi92MuEW5raFWSWit9SxJ6SYeiGPi4w3qvnvtJw5ZsFbVldMK9H
+crunch setup --size default broad-1 test --token ZMlbw4FswTxIf3pEpbA8YhsOKSjFLDhTo5TbDoOIY1LjWR5MYmWK52OqUSAaQdge
