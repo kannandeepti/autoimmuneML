@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import torch
 import numpy as np
@@ -10,7 +11,7 @@ import h5py
 
 # Import necessary functions from the notebook
 # (Make sure these are copied from the notebook to your environment)
-from functions import (
+from resnet50_plus_ridge import (
     preprocess_spatial_transcriptomics_data_train,
     inf_encoder_factory,
     generate_embeddings,
@@ -139,7 +140,7 @@ def create_combined_dataset(
 
     # Save combined dataset
     print("\nSaving combined dataset...")
-    combined_path = os.path.join(output_directory, "combined_dataset.npz")
+    combined_path = os.path.join(output_directory, f"combined_dataset_patch_size_{target_patch_size}.npz")
     np.savez_compressed(
         combined_path,
         samples=[d['sample'] for d in combined_data],
@@ -159,11 +160,12 @@ def create_combined_dataset(
     print(f"Gene names saved to {gene_names_path}")
 
 if __name__ == "__main__":
+    patch_size = int(sys.argv[1])
     # Example usage
     create_combined_dataset(
         data_directory_path='./data',
         output_directory='./embeddings_dataset',
         model_weights_path='./resources/pytorch_model.bin',
         size_subset=None,  # Set to None to use all patches
-        target_patch_size=64
+        target_patch_size=patch_size
     )

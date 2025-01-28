@@ -43,7 +43,6 @@ X_train, X_test, y_train, y_test = train_test_split(
 # Initialize models
 models = {
     'Ridge Regression': Ridge(alpha=1.0),
-    'Random Forest': RandomForestRegressor(n_estimators=100, random_state=42),
     'Neural Network': MLPRegressor(
         hidden_layer_sizes=(100, 50),
         max_iter=1000,
