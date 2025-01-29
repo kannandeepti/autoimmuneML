@@ -1,3 +1,4 @@
+import sys
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
@@ -5,6 +6,8 @@ import matplotlib.pyplot as plt
 from scipy.stats import spearmanr, pearsonr
 import warnings
 from scipy.stats import ConstantInputWarning
+
+patch_size = int(sys.argv[1])
 
 def log1p_normalization(arr):
     """  Apply log1p normalization to the given array """
@@ -30,7 +33,7 @@ def nearest_neighbor_predict(X_train, y_train, X_test, k=200):
     return np.array(predictions)
 
 # Load the NPZ file
-data = np.load('embeddings_dataset/combined_dataset.npz')
+data = np.load(f'embeddings_dataset/combined_dataset_patch_size_{patch_size}.npz')
 
 # Load and normalize the data
 embeddings = data['embeddings'][::10]

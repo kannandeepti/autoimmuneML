@@ -13,4 +13,4 @@ module load nccl/2.23.4-cuda12.6
 eval "$(conda shell.bash hook)"
 source activate autoimmuneML_env
 
-python -u generate_embeddings.py 128
+python -u generate_embeddings.py 224

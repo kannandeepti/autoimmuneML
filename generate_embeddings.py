@@ -23,6 +23,7 @@ def create_combined_dataset(
     data_directory_path: str,
     output_directory: str,
     model_weights_path: str,
+    encoder_name: str,
     size_subset: int = None,
     target_patch_size: int = 32,
 ):
@@ -37,6 +38,9 @@ def create_combined_dataset(
         target_patch_size: Size of image patches
     """
     
+    if encoder_name == 'hoptimus0' and target_patch_size != 224:
+        raise ValueError("hoptimus0 expects target patch size of 224 x 224.")
+        
     # Create output directories
     os.makedirs(output_directory, exist_ok=True)
     processed_dir = os.path.join(output_directory, "processed_dataset")
@@ -53,23 +57,39 @@ def create_combined_dataset(
         "vis_width": 1000,
         "batch_size": 128,
         "num_workers": 0,
-        "encoder": "resnet50",
+        "encoder": encoder_name,
         "weights_root": model_weights_path,
         "overwrite": True
     }
     args = SimpleNamespace(**args_dict)
 
-    # Process images and create patches
-    print("Preprocessing spatial transcriptomics data...")
-    preprocess_spatial_transcriptomics_data_train(
-        list_ST_name_data,
-        data_directory_path,
-        processed_dir,
-        args.size_subset,
-        args.target_patch_size,
-        args.vis_width,
-        args.show_extracted_images
-    )
+    # Check for existing processed files
+    patches_dir = os.path.join(processed_dir, "patches")
+    adata_dir = os.path.join(processed_dir, "adata")
+    gene_path = os.path.join(processed_dir, 'var_genes.json')
+    
+    # Check if preprocessing was already done
+    preprocessing_complete = all([
+        os.path.exists(patches_dir),
+        os.path.exists(adata_dir),
+        os.path.exists(gene_path),
+        all(os.path.exists(os.path.join(patches_dir, f'{name}.h5')) 
+            for name in list_ST_name_data)
+    ])
+
+    if not preprocessing_complete:
+        print("Preprocessing spatial transcriptomics data...")
+        preprocess_spatial_transcriptomics_data_train(
+            list_ST_name_data,
+            data_directory_path,
+            processed_dir,
+            args.size_subset,
+            args.target_patch_size,
+            args.vis_width,
+            args.show_extracted_images
+        )
+    else:
+        print("Found existing preprocessed data, skipping preprocessing step...")
 
     # Set up for embeddings
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -140,7 +160,7 @@ def create_combined_dataset(
 
     # Save combined dataset
     print("\nSaving combined dataset...")
-    combined_path = os.path.join(output_directory, f"combined_dataset_patch_size_{target_patch_size}.npz")
+    combined_path = os.path.join(output_directory, f"combined_dataset_patch_size_{target_patch_size}_{encoder_name}.npz")
     np.savez_compressed(
         combined_path,
         samples=[d['sample'] for d in combined_data],
@@ -165,7 +185,8 @@ if __name__ == "__main__":
     create_combined_dataset(
         data_directory_path='./data',
         output_directory='./embeddings_dataset',
-        model_weights_path='./resources/pytorch_model.bin',
-        size_subset=None,  # Set to None to use all patches
+        model_weights_path='./resources/hoptimus0/pytorch_model.bin',
+        encoder_name='hoptimus0',
+        size_subset=10,  # Set to None to use all patches
         target_patch_size=patch_size
     )
