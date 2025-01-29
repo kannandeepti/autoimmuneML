@@ -44,3 +44,5 @@ broad-1*/
 .empty/
 
 output_files/*.out*
+
+resources/combined_dataset.npz

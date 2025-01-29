@@ -24,7 +24,7 @@ def create_combined_dataset(
     output_directory: str,
     model_weights_path: str,
     size_subset: int = None,
-    target_patch_size: int = 32,
+    target_patch_size: int = 64,
 ):
     """
     Creates a combined dataset containing patches, embeddings, and gene expression data.
@@ -58,6 +58,12 @@ def create_combined_dataset(
         "overwrite": True
     }
     args = SimpleNamespace(**args_dict)
+
+    # Save training configuration to JSON
+    with open(os.path.join(output_directory, 'config.json'), 'w') as f:
+        json.dump(vars(args), f, sort_keys=True, indent=4)
+
+    return None
 
     # Process images and create patches
     print("Preprocessing spatial transcriptomics data...")
