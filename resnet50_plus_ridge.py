@@ -1015,6 +1015,38 @@ class ResNet50InferenceEncoder(InferenceEncoder):
             out = out[0]
         return out
 
+from transformers import AutoModel, AutoConfig
+
+class HOptimusInferenceEncoder(InferenceEncoder):
+    """
+    Inference encoder for the H-optimus-0 model.
+    """
+
+    def _build(self, weights_root="resources/hoptimus0/pytorch_model.bin", 
+                config_path="resources/hoptimus0"):
+        """
+        Load the Hugging Face model in offline mode.
+        """
+
+        print(f"Loading H-optimus-0 model from weights path: {weights_root}")
+
+        # Load model using local weights only
+        model = AutoModel.from_pretrained(
+            pretrained_model_name_or_path=config_path,  # No internet
+            ignore_mismatched_sizes=True,
+            state_dict=torch.load(weights_root, map_location="cpu"),  # Load weights locally
+            trust_remote_code=True  # Allow custom model code
+        )
+
+        # Set normalization mean and std
+        mean, std = [0.707223, 0.578729, 0.703617], [0.211883, 0.230117, 0.177517]
+        eval_transform = get_eval_transforms(mean, std)
+        precision = torch.float16  # Recommended precision for H-optimus-0
+
+        return model, eval_transform, precision
+
+
+
 def inf_encoder_factory(enc_name):
     """
     Factory function to instantiate an encoder based on the specified name.
@@ -1022,7 +1054,7 @@ def inf_encoder_factory(enc_name):
     Parameters:
     -----------
     enc_name : str
-        The name of the encoder model to instantiate (e.g., 'resnet50').
+        The name of the encoder model to instantiate (e.g., 'resnet50', 'hoptimus0').
 
     Returns:
     --------
@@ -1032,6 +1064,8 @@ def inf_encoder_factory(enc_name):
 
     if enc_name == 'resnet50':
         return ResNet50InferenceEncoder
+    elif enc_name == 'hoptimus0':
+        return HOptimusInferenceEncoder
 
     raise ValueError(f"Unknown encoder name {enc_name}")
 
