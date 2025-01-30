@@ -1016,6 +1016,7 @@ class ResNet50InferenceEncoder(InferenceEncoder):
         return out
 
 from transformers import AutoModel, AutoConfig
+import json
 
 class HOptimusInferenceEncoder(InferenceEncoder):
     """
@@ -1023,28 +1024,39 @@ class HOptimusInferenceEncoder(InferenceEncoder):
     """
 
     def _build(self, weights_root="resources/hoptimus0/pytorch_model.bin", 
-                config_path="resources/hoptimus0"):
+                config_dir="resources/hoptimus0"):
         """
         Load the Hugging Face model in offline mode.
         """
 
         print(f"Loading H-optimus-0 model from weights path: {weights_root}")
 
+        # Load config
+        config_path = os.path.join(os.path.dirname(weights_root), 'config.json')
+        with open(config_path) as f:
+            config = json.load(f)
+
         # Load model using local weights only
         model = AutoModel.from_pretrained(
-            pretrained_model_name_or_path=config_path,  # No internet
+            pretrained_model_name_or_path=config_dir,  # No internet
             ignore_mismatched_sizes=True,
             state_dict=torch.load(weights_root, map_location="cpu"),  # Load weights locally
             trust_remote_code=True  # Allow custom model code
         )
 
         # Set normalization mean and std
-        mean, std = [0.707223, 0.578729, 0.703617], [0.211883, 0.230117, 0.177517]
+        mean = config['pretrained_cfg']['mean']
+        std = config['pretrained_cfg']['std']
         eval_transform = get_eval_transforms(mean, std)
         precision = torch.float16  # Recommended precision for H-optimus-0
 
         return model, eval_transform, precision
 
+    def forward(self, x):
+        #each 14 x 14 patch (token) is assigned an embedding of shape (1,1536)
+        #model(x) returns a TimmWrapperModelOutput object. pooler_output is the pooled embedding of the 518 x 518 image
+        out = self.model(x).pooler_output
+        return out
 
 
 def inf_encoder_factory(enc_name):
@@ -1167,6 +1179,7 @@ def embed_tiles(dataloader, model: torch.nn.Module, embedding_save_path: str, de
     for batch_idx, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
         batch = post_collate_fn(batch)
         imgs = batch['imgs'].to(device).float()
+        print(imgs.shape)
         # Apply model on images
         with torch.inference_mode():
             if torch.cuda.is_available():  # Use mixed precision only if CUDA is available

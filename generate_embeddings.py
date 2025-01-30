@@ -8,6 +8,7 @@ from types import SimpleNamespace
 import spatialdata as sd
 from tqdm import tqdm
 import h5py
+from torchvision import transforms
 
 # Import necessary functions from the notebook
 # (Make sure these are copied from the notebook to your environment)
@@ -38,8 +39,8 @@ def create_combined_dataset(
         target_patch_size: Size of image patches
     """
     
-    if encoder_name == 'hoptimus0' and target_patch_size != 224:
-        raise ValueError("hoptimus0 expects target patch size of 224 x 224.")
+    if encoder_name == 'hoptimus0' and target_patch_size != 518:
+        raise ValueError("hoptimus0 expects target patch size of 518 x 518.")
         
     # Create output directories
     os.makedirs(output_directory, exist_ok=True)
@@ -76,6 +77,8 @@ def create_combined_dataset(
         all(os.path.exists(os.path.join(patches_dir, f'{name}.h5')) 
             for name in list_ST_name_data)
     ])
+
+    preprocessing_complete=False
 
     if not preprocessing_complete:
         print("Preprocessing spatial transcriptomics data...")
@@ -179,6 +182,27 @@ def create_combined_dataset(
     print(f"Dataset saved to {combined_path}")
     print(f"Gene names saved to {gene_names_path}")
 
+def test_embeddings(enc_name, model_weights_path, patch_size):
+    """ Function to test model loading, embedding generation from a fake image tensor """
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    encoder = inf_encoder_factory(enc_name)(model_weights_path)
+    encoder.eval()
+    encoder.to(device)
+
+    img = torch.rand(3, patch_size, patch_size) #random tensor
+    img = transforms.ToPILImage()(img) #convert to image (input for eval_transforms)
+    img = encoder.eval_transforms(img) #convert back to tensor, normalize by mean/std
+    img = img.unsqueeze(0).to(device).float()
+
+    with torch.inference_mode():
+        if torch.cuda.is_available():  # Use mixed precision only if CUDA is available
+            with torch.amp.autocast('cuda', dtype=encoder.precision):
+                embeddings = encoder(img)
+        else:  # No mixed precision on CPU
+            embeddings = encoder(img)
+
+    return embeddings
+
 if __name__ == "__main__":
     patch_size = int(sys.argv[1])
     # Example usage
@@ -187,6 +211,6 @@ if __name__ == "__main__":
         output_directory='./embeddings_dataset',
         model_weights_path='./resources/hoptimus0/pytorch_model.bin',
         encoder_name='hoptimus0',
-        size_subset=10,  # Set to None to use all patches
+        size_subset=None,  # Set to None to use all patches
         target_patch_size=patch_size
     )
