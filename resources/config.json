@@ -1,0 +1,11 @@
+{
+    "batch_size": 128,
+    "encoder": "resnet50",
+    "num_workers": 0,
+    "overwrite": true,
+    "show_extracted_images": false,
+    "size_subset": null,
+    "target_patch_size": 64,
+    "vis_width": 1000,
+    "weights_root": "./resources/pytorch_model.bin"
+}

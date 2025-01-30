@@ -26,7 +26,7 @@ def create_combined_dataset(
     model_weights_path: str,
     encoder_name: str,
     size_subset: int = None,
-    target_patch_size: int = 32,
+    target_patch_size: int = 64,
 ):
     """
     Creates a combined dataset containing patches, embeddings, and gene expression data.
