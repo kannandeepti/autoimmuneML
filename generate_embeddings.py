@@ -153,11 +153,11 @@ def create_combined_dataset(
                 f"Coordinate mismatch for barcode {barcode}"
             
             combined_data.append({
-                'sample': name_data,
-                'barcode': barcode,
-                'patch': patches[patch_idx],  # Use matched patch
+                #'sample': name_data,
+                #'barcode': barcode,
+                #'patch': patches[patch_idx],  # Use matched patch
                 'embedding': assets['embeddings'][i],
-                'coords': assets['coords'][i],
+                #'coords': assets['coords'][i],
                 'gene_expression': adata.values[i]
             })
 
@@ -203,9 +203,41 @@ def test_embeddings(enc_name, model_weights_path, patch_size):
 
     return embeddings
 
+def save_dataset(output_directory='./embeddings_dataset'):
+    """ Create a .npz file combining the embeddings and gene expression data into one file."""
+
+    processed_dir = os.path.join(output_directory, "processed_dataset")
+    embed_dir = os.path.join(processed_dir, "ST_data_emb")
+    list_ST_name_data = ["UC1_NI", "UC1_I", "UC6_NI", "UC6_I", "UC7_I", "UC9_I", "DC5"]
+
+    # Load gene list
+    gene_path = os.path.join(processed_dir, 'var_genes.json')
+    with open(gene_path, 'r') as f:
+        genes = json.load(f)['genes']
+
+    combined_embeddings = []
+    combined_gene_expr = []
+    for name_data in list_ST_name_data:
+        embed_path = os.path.join(embed_dir, f'{name_data}.h5')
+        assets, _ = read_assets_from_h5(embed_path)
+        expr_path = os.path.join(processed_dir, "adata", f'{name_data}.h5ad')
+        barcodes = assets['barcodes'].flatten().astype(str).tolist()
+        adata = load_adata(expr_path, genes=genes, barcodes=barcodes, normalize=False)
+        combined_embeddings.append(assets['embeddings'])
+        combined_gene_expr.append(adata.values)
+    
+    # Save combined dataset
+    print("\nSaving combined dataset...")
+    combined_path = os.path.join(output_directory, f"combined_dataset_patch_size_518_hoptimus0.npz")
+    np.savez_compressed(
+        combined_path,
+        embeddings=np.vstack(combined_embeddings),
+        gene_expression=np.vstack(combined_gene_expr)
+    )
+
+
 if __name__ == "__main__":
     patch_size = int(sys.argv[1])
-    # Example usage
     create_combined_dataset(
         data_directory_path='./data',
         output_directory='./embeddings_dataset',

@@ -6,6 +6,9 @@ import matplotlib.pyplot as plt
 from scipy.stats import spearmanr, pearsonr
 import warnings
 from scipy.stats import ConstantInputWarning
+from multiprocessing import Pool
+from functools import partial
+from tqdm import tqdm
 
 patch_size = int(sys.argv[1])
 
@@ -32,12 +35,86 @@ def nearest_neighbor_predict(X_train, y_train, X_test, k=200):
 
     return np.array(predictions)
 
+def process_chunk(chunk_data, X_train, y_train, k):
+    """
+    Process a single chunk of test data
+    
+    Parameters:
+    -----------
+    chunk_data : tuple
+        (start_idx, chunk_X_test) containing the start index and chunk of test data
+    X_train : np.ndarray
+        Training embeddings
+    y_train : np.ndarray
+        Training labels/values
+    k : int
+        Number of nearest neighbors
+    """
+    start_idx, chunk_X_test = chunk_data
+    chunk_size = len(chunk_X_test)
+    chunk_predictions = np.zeros((chunk_size, y_train.shape[1]))
+    
+    # Process each sample in the chunk
+    for i in range(chunk_size):
+        # Calculate distances to all training points
+        diff = X_train - chunk_X_test[i]
+        distances = np.sum(diff * diff, axis=1)
+        
+        # Find k nearest neighbors
+        nn_indices = np.argpartition(distances, k)[:k]
+        # Calculate mean prediction
+        chunk_predictions[i] = np.mean(y_train[nn_indices], axis=0)
+    
+    return (start_idx, chunk_predictions)
+
+def nearest_neighbor_predict_multiprocessing(X_train, y_train, X_test, k=200, chunk_size=100, n_processes=12):
+    """
+    Parallel implementation of k-nearest neighbors using multiprocessing
+    
+    Parameters:
+    -----------
+    X_train : np.ndarray
+        Training embeddings
+    y_train : np.ndarray 
+        Training labels/values
+    X_test : np.ndarray
+        Test embeddings
+    k : int
+        Number of nearest neighbors
+    chunk_size : int
+        Size of chunks for parallel processing
+    n_processes : int
+        Number of parallel processes to use
+    """
+    n_test = X_test.shape[0]
+    n_features = y_train.shape[1]
+    predictions = np.zeros((n_test, n_features))
+    
+    # Prepare chunks of data
+    chunks = []
+    for start_idx in range(0, n_test, chunk_size):
+        end_idx = min(start_idx + chunk_size, n_test)
+        chunks.append((start_idx, X_test[start_idx:end_idx]))
+    
+    # Create a partial function with fixed arguments
+    process_chunk_partial = partial(process_chunk, X_train=X_train, y_train=y_train, k=k)
+    
+    # Process chunks in parallel
+    with Pool(processes=n_processes) as pool:
+        # Use tqdm to show progress
+        for start_idx, chunk_predictions in tqdm(pool.imap(process_chunk_partial, chunks), 
+                                               total=len(chunks)):
+            end_idx = min(start_idx + chunk_size, n_test)
+            predictions[start_idx:end_idx] = chunk_predictions
+    
+    return predictions
+
 # Load the NPZ file
-data = np.load(f'embeddings_dataset/combined_dataset_patch_size_{patch_size}.npz')
+data = np.load(f'embeddings_dataset/combined_dataset_hoptimus0.npz')
 
 # Load and normalize the data
-embeddings = data['embeddings'][::10]
-gene_expression = data['gene_expression'][::10]
+embeddings = data['embeddings']
+gene_expression = data['gene_expression']
 gene_expression_normalized = log1p_normalization(gene_expression)
 
 # Create train/test split
@@ -54,7 +131,7 @@ print("y_test.shape: ", y_test.shape)
 print("\nTraining Nearest Neighbor model...")
 # Make predictions
 # train_preds = nearest_neighbor_predict(X_train, y_train, X_train)
-test_preds = nearest_neighbor_predict(X_train, y_train, X_test)
+test_preds = nearest_neighbor_predict_multiprocessing(X_train, y_train, X_test, n_processes=40)
 
 print("test_preds.shape: ", test_preds.shape)
 
