@@ -1,14 +1,18 @@
+import sys
 import numpy as np
 from sklearn.model_selection import train_test_split
-from sklearn.linear_model import Ridge
+from sklearn.linear_model import Ridge, Lasso
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.neural_network import MLPRegressor
 from sklearn.metrics import mean_squared_error
 import matplotlib.pyplot as plt
 from scipy.stats import spearmanr, pearsonr
 
+
+patch_size = int(sys.argv[1])
+
 # Load the NPZ file
-data = np.load('embeddings_dataset/combined_dataset.npz')
+data = np.load(f'embeddings_dataset/combined_dataset_hoptimus0.npz')
 
 # Print all keys in the dataset
 print("Keys in the dataset:")
@@ -19,9 +23,8 @@ for key in data.keys():
     # print(f"  Shape: {array.shape}")
     # print(f"  Number of datapoints: {len(array)}")
 
-# print(data['embeddings'].shape)
+print(data['embeddings'].shape)
 print(data['gene_expression'].shape)
-print(data['samples'][3])
 
 def log1p_normalization(arr):
     """  Apply log1p normalization to the given array """
@@ -78,6 +81,7 @@ for name, model in models.items():
     print(f"  Train L2: {train_l2:.4f}, Test L2: {test_l2:.4f}")
     print(f"  Train Spearman: {train_spearman:.4f}, Test Spearman: {test_spearman:.4f}")
 
+"""
 # Plot results
 plt.figure(figsize=(10, 6))
 x = np.arange(len(results))
@@ -95,5 +99,5 @@ plt.tight_layout()
 plt.savefig('model_comparison.png', bbox_inches='tight', dpi=300)
 plt.close()
 
-
+"""
 
