@@ -78,6 +78,24 @@ def nearest_neighbor_predict_regular(X_train, y_train, X_test, k=200):
 
     return np.array(predictions)
 
+def nearest_neighbor_predict_cdist(X_train, y_train, X_test, k=200):
+    """Find k nearest neighbors in training set for each test point using cdist and return average of their y values"""
+    from scipy.spatial.distance import cdist
+    
+    # Calculate all pairwise distances at once using cdist
+    distances = cdist(X_test, X_train, metric='euclidean')
+    
+    # If the test set is the same as training set, mask self-distances
+    if X_test is X_train:
+        np.fill_diagonal(distances, np.inf)
+    
+    # Find k nearest neighbors for all points at once
+    nn_indices = np.argpartition(distances, k, axis=1)[:, :k]
+    
+    # Calculate predictions using broadcasting
+    predictions = np.mean(y_train[nn_indices], axis=1)
+    
+    return predictions
 
 def process_chunk(chunk_data, X_train, y_train, k):
     """
@@ -163,6 +181,9 @@ embeddings = embeddings_table['embeddings'][::50]
 gene_expression = embeddings_table['gene_expression'][::50]
 gene_expression_normalized = log1p_normalization(gene_expression)
 
+print(np.linalg.norm(embeddings[0]))
+print(np.linalg.norm(embeddings[1]))
+
 # Create train/test split
 print("creating train/test split")
 X_train, X_test, y_train, y_test = train_test_split(
@@ -190,6 +211,16 @@ start_time = time.time()
 predictions_multiprocessing = nearest_neighbor_predict_multiprocessing(X_train, y_train, X_test)
 multiprocessing_time = time.time() - start_time
 print(f"Multiprocessing prediction took {multiprocessing_time:.2f} seconds")
+
+# Test cdist method
+start_time = time.time()
+predictions_cdist = nearest_neighbor_predict_cdist(X_train, y_train, X_test)
+cdist_time = time.time() - start_time
+print(f"Cdist prediction took {cdist_time:.2f} seconds")
+
+# Verify
+print("Verifying results match:")
+print("Multiprocessing vs Cdist:", np.allclose(predictions_multiprocessing, predictions_cdist, rtol=1e-5, atol=1e-8))
 
 # Verify results are the same (within numerical precision)
 # print("\nVerifying results match:")
